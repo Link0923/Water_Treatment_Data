@@ -67,7 +67,6 @@
       box-shadow: 0 2px 4px rgba(23, 100, 36, 0.788);
       position: relative;
     }
-    /* New legend styling adapted for ArcGIS view.ui (top-left) */
     #mapLegend {
       background: #f5f2e6;
       padding: 12px 16px 14px 16px;
@@ -79,7 +78,7 @@
       max-height: 340px;
       overflow-y: auto;
       width: 290px;
-      display: none; /* start hidden; button will toggle */
+      display: none; 
     }
     #mapLegend::-webkit-scrollbar { width: 10px; }
     #mapLegend::-webkit-scrollbar-track { background: #efe9d3; border-radius: 10px; }
@@ -127,7 +126,6 @@
           <div id="searchSuggestions" style="display:none; position:absolute; top:36px; left:0; right:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:200; max-height:320px; overflow-y:auto;"></div>
         </div>
   <div id="secondarySearchWrapper" style="display:flex; flex:0 0 340px; min-width:260px; align-items:center; gap:8px; justify-content:flex-start;">
-          <!-- zoomSearchBox and its Go button will be injected here by script if not already present -->
         </div>
       </div>
     </div>
@@ -197,7 +195,6 @@
                   <label style="display:flex; align-items:center; gap:4px;"><input type="radio" name="wcServiceYN" value="ANY" checked /> Any</label>
                 </div>
               </div>
-              <!-- Capability checkboxes -->
               <div style="text-align:center; font-weight:700; margin:6px 0 4px 0; font-size:13px;">Water Treatment Capabilities</div>
               <label><input type="checkbox" class="wc-opt" value="HVAC water treatment services" /> HVAC water treatment services</label>
               <label><input type="checkbox" class="wc-opt" value="Cooling Water Treatment services" /> Cooling Water Treatment services</label>
@@ -239,7 +236,6 @@
           </div>
         </div>
       </div>
-  <!-- Legend now managed by view.ui in top-left -->
   <div id="mapLegend"></div>
     </div>
   </div>
@@ -258,10 +254,10 @@
       let professionalsLayerRef = null;
       let countiesLayerRef = null;
   let blueTrianglesLayerRef = null;
-  let statesLayerRef = null; // hidden states layer for reliable zoom geometry
-  let dynamicStateExtents = null; // built from GeoJSON
-  let waterCompanyServiceField = null; // holds exact field name for 'Water treatment services? (Y/N)'
-  let waterCompanyServiceAliasField = '_ServiceYN'; // sanitized internal alias used for filtering
+  let statesLayerRef = null; 
+  let dynamicStateExtents = null; 
+  let waterCompanyServiceField = null;
+  let waterCompanyServiceAliasField = '_ServiceYN';
       
   let postalCodesLayerRef = null;
 
@@ -303,25 +299,20 @@
 
       map = new EsriMap({ basemap: "topo-vector" });
       view = new MapView({ container: "viewDiv", map: map, center: [-95.671, 39.049], zoom: 5 });
-
-      // User-provided USA States GeoJSON (polygons & attributes) - hidden layer for zoom logic
       try {
         const statesGeoJsonUrl = "https://raw.githubusercontent.com/Link0923/Water_Treatment_Data/refs/heads/main/USA_State_Bounds.geojson";
-        // Pre-fetch to inspect geometry presence before creating layer view
         fetch(statesGeoJsonUrl).then(r => r.json()).then(geojson => {
           const feats = geojson && geojson.features ? geojson.features : [];
           const hasGeometry = feats.some(f => f.geometry && f.geometry.coordinates);
           if (!hasGeometry) {
             console.warn('[States] Provided GeoJSON has null geometries; skipping layer creation. Using static extents only.');
-            return; // do not create layer to avoid layerView errors
+            return; 
           }
-          // Build dynamic extents directly from raw GeoJSON (faster than layer query)
           dynamicStateExtents = {};
           feats.forEach(f => {
             const attrs = f.properties || {};
             const abbr = attrs.STATE_ABBR;
             if (!abbr || !f.geometry) return;
-            // Compute bbox manually
             const type = f.geometry.type;
             let coords = f.geometry.coordinates;
             function traverse(arr, cb){
@@ -338,7 +329,6 @@
             }
           });
           console.log('[States] Dynamic extents (raw parse) built for', Object.keys(dynamicStateExtents).length,'states');
-          // Optionally create hidden layer for future styling
           statesLayerRef = new GeoJSONLayer({
             url: statesGeoJsonUrl,
             title: 'US States (Hidden)',
@@ -350,7 +340,6 @@
         }).catch(err => console.warn('Failed to fetch states GeoJSON', err));
       } catch (e) { console.warn('Failed to init custom states GeoJSON layer', e); }
 
-      // Move legend DOM node into the ArcGIS UI (top-left)
       const legendNode = document.getElementById('mapLegend');
       view.ui.add({
         component: legendNode,
@@ -359,7 +348,6 @@
       });
       map.add(countiesLayer, 0);
 
-      // USA Postal Codes layer from ArcGIS Online portal item
       const usa_postal_codes = new FeatureLayer({
         portalItem: { id: "d6f7ee6129e241cc9b6f75978e47128b" },
         title: "USA Postal Codes",
@@ -368,7 +356,7 @@
           type: "simple",
           symbol: {
             type: "simple-fill",
-            color: [0, 0, 0, 0], // clear fill
+            color: [0, 0, 0, 0],
             outline: { color: "#98E600", width: 1 }
           }
         },
@@ -389,12 +377,10 @@
       });
       usa_postal_codes.visible = false;
       postalCodesLayerRef = usa_postal_codes;
-      // place above counties (index 1) so points render above it
       map.add(usa_postal_codes, 1);
 
-      // Dynamically shade counties based on ALL visible professional points (after filters + current extent)
       let _countyShadeInFlight = null;
-      let _countyFipsField = 'FIPS'; // will attempt to confirm (may become fipscode, GEOID, etc.)
+      let _countyFipsField = 'FIPS'; 
       async function detectCountyFipsField() {
         if (!_countyFipsField && countiesLayerRef && countiesLayerRef.fields) {
           const candidates = ['FIPS','fipscode','GEOID','FIPS_CODE','FIPSCode','STATE_FIPS'];
@@ -419,11 +405,9 @@
         query.geometry = view.extent;
         query.spatialRelationship = 'intersects';
         query.where = professionalsLayerRef.definitionExpression || '1=1';
-        // Dynamically include only existing fields to avoid unsupported-query errors
         const candidateFipsFields = ['FIPS','FIPS_5Digit','5_digit_FIPS_Code','FIPS_Code','fips'];
         const existing = (professionalsLayerRef.fields || []).map(f => f.name.toLowerCase());
         const safeOutFields = candidateFipsFields.filter(f => existing.includes(f.toLowerCase()));
-        // Always request at least ObjectID so the query is valid
         if (!safeOutFields.length) {
           console.warn('No FIPS-like fields present on professionals layer; county shading will skip.');
           return;
@@ -446,7 +430,6 @@
           if (typeof fips === 'string') {
             fips = fips.trim();
             if (/^\d+$/.test(fips)) {
-              // pad to 5 digits if it looks numeric
               if (fips.length < 5) fips = fips.padStart(5,'0');
             }
           }
@@ -496,7 +479,6 @@
           defaultSymbol: { type: 'simple-fill', color: [240,240,240,0.1], outline: { color: '#000', width: 1 } },
           defaultLabel: 'No data'
         };
-        // Refresh labeling to reflect the actually detected FIPS field (labels only if scale threshold reached)
         try {
           countiesLayerRef.labelingInfo = [
             {
@@ -512,13 +494,12 @@
               labelPlacement: 'always-horizontal'
             }
           ];
-        } catch (e) { /* non-fatal */ }
+        } catch (e) {}
         if (mapLegend && mapLegend.style.display === 'block') {
           try { updateLegend(); } catch(e) {}
         }
       }
 
-      // Debounce wrapper so rapid pan/zoom doesn't spam renderer updates
       let _countyShadeTimer = null;
       function scheduleCountyShading() {
         if (_countyShadeTimer) clearTimeout(_countyShadeTimer);
@@ -527,8 +508,6 @@
 
     const professionalsCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSCOjCZ3tes6zUNS72GTt4GGAXbYA9Bc-ORuys-4vITSjMPv3W3RbLeqX9jfcwJkvoaHFPys33V471M/pub?gid=275691108&single=true&output=csv";
     const blueTrianglesCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ46YETfsckvzzv94XFmJWt3z2NMYlbRcb2EdIEZ7D8GV_ftX7w3qpY_PrHx6HWvFEmrbuD61E9k8cg/pub?gid=1764059716&single=true&output=csv";
-  // Static ZIP centroid reference (ZIP_CODE -> [lon,lat]) hosted in GitHub
-    // NOTE: The earlier URL included 'refs/heads' which breaks raw GitHub fetching; corrected below.
     const zipCentroidUrl = "https://raw.githubusercontent.com/Link0923/Water_Treatment_Data/main/USA_Zip_Code_Centroid_Ref.json";
 
       async function loadData() {
@@ -537,11 +516,8 @@
           (async () => { professionalsFeatures = await loadProfessionalsLayer(); })(),
           loadBlueTrianglesLayer()
         ]);
-        // Initial shading (only if counties layer is visible at that moment)
         if (countiesLayerRef && countiesLayerRef.visible) scheduleCountyShading();
-        // Store for search
         professionalsData = professionalsFeatures;
-        // If the filter panel is open, refresh its UI with the now-loaded values
         try {
           if (manipulatorPane && getComputedStyle(manipulatorPane).display !== 'none') {
             renderFilterUI();
@@ -559,7 +535,7 @@
           const csvText = await response.text();
           const jsonData = parseCSV(csvText);
           if (jsonData.length === 0) throw new Error("No data found in CSV");
-          const features = parseExcelToFeatures(jsonData, 0); // Professionals use first row headers
+          const features = parseExcelToFeatures(jsonData, 0);
           const headers = jsonData[0];
           await createProfessionalsLayer(features, headers);
           console.log("✅ Professionals CSV data loaded successfully!");
@@ -579,12 +555,10 @@
           const csvText = await response.text();
           const jsonData = parseCSV(csvText);
           if (jsonData.length === 0) throw new Error("No data found in CSV");
-          // Ensure we have ZIP centroid index ready (if needed) before parsing
           if (!_zipCentroidIndexBuilt) {
             try { await buildZipCentroidIndex(); } catch(e){ console.warn('ZIP centroid index build failed (continuing):', e); }
           }
-          // Blue Triangles: use second row as headers (index 1) per requirement
-          const features = parseBlueTriangleFeatures(jsonData); // if parseBlueTriangleFeatures uses its own header logic leave as-is
+          const features = parseBlueTriangleFeatures(jsonData);
           const headers = jsonData[1] || jsonData[0];
           blueTrianglesData = features;
           await createBlueTrianglesLayer(features, headers);
@@ -639,7 +613,6 @@
             fields.push({ name: fieldName, type: fieldType });
           }
         });
-        // Add alias schema fields if present in attributes
         if (features.length) {
           const a0 = features[0].attributes || {};
           if (a0['Role_Category'] !== undefined && !fields.some(f => f.name === 'Role_Category')) {
@@ -663,11 +636,9 @@
           if (a0['State Abbr'] !== undefined && !fields.some(f => f.name === 'State Abbr')) {
             fields.push({ name: 'State Abbr', type: 'string' });
           }
-          // Derived numeric experience field if original is present
           const expOrig = Object.keys(a0).find(k => k.toLowerCase() === 'years experience (numeric)' || k.toLowerCase() === 'years_experience_(numeric)' || k.toLowerCase().replace(/[^a-z0-9]/g,'') === 'yearsexperiencenumeric');
           if (expOrig && !fields.some(f => f.name === '_YearsExpNum')) {
             fields.push({ name: '_YearsExpNum', type: 'double' });
-            // Populate sanitized numeric value on each feature
             features.forEach(f => {
               const raw = f.attributes[expOrig];
               let num = null;
@@ -711,7 +682,6 @@
         if (!roleField) {
           roleField = headers.find(h => h && h.toString().replace(/[_ ]/g, '').toLowerCase().includes("rolecategory"));
         }
-        // Prefer alias field if available in feature attributes
         if (features.length && features[0].attributes && features[0].attributes['Role_Category'] !== undefined) {
           roleField = 'Role_Category';
         }
@@ -788,8 +758,6 @@
             fields.push({ name: fieldName, type: fieldType });
           }
         });
-
-        // Detect exact service field name (case & spacing tolerant match to canonical label)
         const targetServiceLabel = 'Water treatment services? (Y/N)';
         waterCompanyServiceField = null;
         for (const h of headers) {
@@ -797,24 +765,20 @@
             const norm = h.toString().trim().toLowerCase();
             const normTarget = targetServiceLabel.toLowerCase();
             if (norm === normTarget) { waterCompanyServiceField = h.toString().trim(); break; }
-            // fallback: allow missing (Y/N)
             if (!waterCompanyServiceField && norm.replace(/\s*\(y\/n\)\s*/,'') === normTarget.replace(/\s*\(y\/n\)\s*/,'')) {
               waterCompanyServiceField = h.toString().trim();
             }
         }
-        // Secondary, more permissive normalization if still not found
         if (!waterCompanyServiceField) {
           const canonical = ['watertreatmentservicesyn','watertreatmentservices'];
           for (const h of headers) {
             if (!h) continue;
             const raw = h.toString().trim();
-            const superNorm = raw.toLowerCase().replace(/[^a-z0-9]/g,''); // remove spaces, punctuation, ? ( ) / - etc.
+            const superNorm = raw.toLowerCase().replace(/[^a-z0-9]/g,'');
             if (canonical.includes(superNorm)) { waterCompanyServiceField = raw; break; }
-            // allow trailing y/n separated by anything
             if (!waterCompanyServiceField && superNorm.startsWith('watertreatmentservices') && superNorm.endsWith('yn')) { waterCompanyServiceField = raw; break; }
           }
         }
-        // Final ultra-fallback: pick first header whose distinct non-empty values (sampled from first 50 rows) subset of {Y,N,Yes,No}
         if (!waterCompanyServiceField && features && features.length) {
           const sampleCount = Math.min(50, features.length);
             const candidateScores = {};
@@ -827,7 +791,7 @@
                 if (v !== undefined && v !== null && v !== '') distinct.add(v.toString().trim());
               }
               if (distinct.size && [...distinct].every(v => /^(y|n|yes|no)$/i.test(v))) {
-                candidateScores[raw] = distinct.size; // smaller size (1 or 2) preferred
+                candidateScores[raw] = distinct.size;
               }
             }
             const candidates = Object.entries(candidateScores).sort((a,b)=>a[1]-b[1]);
@@ -838,8 +802,6 @@
         }
         console.log('[WaterCompanySelection] Blue Triangles headers (debug):', headers);
         console.log('[WaterCompanySelection] Detected service field:', waterCompanyServiceField || '(not found)');
-
-        // If we found the service field, create a sanitized alias field for reliable querying
         if (waterCompanyServiceField) {
           if (!fields.some(f => f.name === waterCompanyServiceAliasField)) {
             fields.push({ name: waterCompanyServiceAliasField, type: 'string' });
@@ -853,12 +815,10 @@
             else if (norm.startsWith('Y')) norm = 'Y';
             else if (norm.startsWith('N')) norm = 'N';
             else norm = '';
-            f.attributes[waterCompanyServiceAliasField] = norm; // Y / N / ''
+            f.attributes[waterCompanyServiceAliasField] = norm; 
           });
           console.log('[WaterCompanySelection] Alias field populated for service Y/N ->', waterCompanyServiceAliasField);
         }
-
-        // HVAC capability alias _HVAC -> '1' if original value is 1, else ''
         const hvacOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'hvac water treatment services');
         const hvacAlias = '_HVAC';
         if (hvacOriginalField) {
@@ -877,8 +837,6 @@
         } else {
           console.warn('[WaterCompanySelection] HVAC capability source field not found (expected: "HVAC water treatment services")');
         }
-
-        // Cooling Water Treatment services alias _COOLING
         const coolingOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'cooling water treatment services');
         const coolingAlias = '_COOLING';
         if (coolingOriginalField) {
@@ -897,8 +855,6 @@
         } else {
           console.warn('[WaterCompanySelection] Cooling capability source field not found (expected: "Cooling Water Treatment services")');
         }
-
-        // Heating/Boiler Water Treatment services alias _HEATING
         const heatingOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'heating/boiler water treatment service');
         const heatingAlias = '_HEATING';
         if (heatingOriginalField) {
@@ -917,8 +873,6 @@
         } else {
           console.warn('[WaterCompanySelection] Heating capability source field not found (expected: "Heating/Boiler Water Treatment services")');
         }
-
-        // Filtration/separation or Reverse Osmosis water treatment services alias _FILTRATION
         const filtrationOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'filtration/separation or reverse osmosis water treatment services');
         const filtrationAlias = '_FILTRATION';
         if (filtrationOriginalField) {
@@ -937,8 +891,6 @@
         } else {
           console.warn('[WaterCompanySelection] Filtration capability source field not found (expected: "Filtration/Separation or Reverse Osmosis water treatment services")');
         }
-
-        // Ultrapure water treatment services alias _ULTRAPURE
         const ultrapureOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'ultrapure water treatment');
         const ultrapureAlias = '_ULTRAPURE';
         if (ultrapureOriginalField) {
@@ -957,8 +909,6 @@
         } else {
           console.warn('[WaterCompanySelection] Ultrapure capability source field not found (expected: "Ultrapure water treatment services")');
         }
-
-        //  Wastewater treatment services alias _WASTEWATER
         const wastewaterOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'wastewater treatment');
         const wastewaterAlias = '_WASTEWATER';
         if (wastewaterOriginalField) {
@@ -977,8 +927,6 @@
         } else {
           console.warn('[WaterCompanySelection] Wastewater capability source field not found (expected: "Wastewater treatment services")');
         }
-
-        //  Glycol alias _GLYCOL
         const glycolOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'glycol');
         const glycolAlias = '_GLYCOL';
         if (glycolOriginalField) {
@@ -997,8 +945,6 @@
         } else {
           console.warn('[WaterCompanySelection] Wastewater capability source field not found (expected: "Wastewater treatment services")');
         }
-
-        //  Cleaning / Sanitization / Disinfection services alias _CLEANING
         const cleaningOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'cleaning / sanitization / disinfection');
         const cleaningAlias = '_CLEANING';
         if (cleaningOriginalField) {
@@ -1017,8 +963,6 @@
         } else {
           console.warn('[WaterCompanySelection] Cleaning capability source field not found (expected: "Cleaning / Sanitization / Disinfection services")');
         }
-
-        //  Legionella or other regulatory testing services alias _LEGIONELLA
         const legionellaOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'legionella or other regulatory testing');
         const legionellaAlias = '_LEGIONELLA';
         if (legionellaOriginalField) {
@@ -1037,8 +981,6 @@
         } else {
           console.warn('[WaterCompanySelection] Legionella capability source field not found (expected: "Legionella or other regulatory testing")');
         }
-
-        //  Chemical Blending, specialty formulation, private label for water treatment services alias _CHEMICALBLENDING
         const chemicalBlendingOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'chemical blending, specialty formulation, private label for water treatment');
         const chemicalBlendingAlias = '_CHEMICALBLENDING';
         if (chemicalBlendingOriginalField) {
@@ -1057,8 +999,6 @@
         } else {
           console.warn('[WaterCompanySelection] Chemical Blending capability source field not found (expected: "Chemical Blending, specialty formulation, private label for water treatment")');
         }
-
-        //  Manufacturing or assembly: Pumps / Controls / sensors alias _MANUFACTURING
         const manufacturingOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'manufacturing or assembly: pumps / controls / sensors');
         const manufacturingAlias = '_MANUFACTURING';
         if (manufacturingOriginalField) {
@@ -1077,8 +1017,6 @@
         } else {
           console.warn('[WaterCompanySelection] Manufacturing capability source field not found (expected: "Manufacturing or assembly: Pumps / Controls / sensors")');
         }
-
-        //  Installation and/or maintenance: Pumps / Controls / sensors alias _INSTALLATION
         const installationOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'installation and/or maintenance: pumps / controls / sensors');
         const installationAlias = '_INSTALLATION';
         if (installationOriginalField) {
@@ -1097,8 +1035,6 @@
         } else {
           console.warn('[WaterCompanySelection] Installation capability source field not found (expected: "Installation and/or maintenance: Pumps / Controls / sensors")');
         }
-
-        //  Manufacturing or assembly: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators, alias _MANUFACTURING1
         const manufacturing1OriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'manufacturing or assembly: water treatment equipment - filters, membrane systems, reverse osmosis (ro), softeners, chlorine or ozone generators');
         const manufacturing1Alias = '_MANUFACTURING1';
         if (manufacturing1OriginalField) {
@@ -1117,8 +1053,6 @@
         } else {
           console.warn('[WaterCompanySelection] Manufacturing 1 capability source field not found (expected: "Manufacturing or assembly: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators")');
         }
-
-        //  Installation and/or maintenance: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators alias _INSTALLATION1
         const installation1OriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'installation and/or maintenance: water treatment equipment - filters, membrane systems, reverse osmosis (ro), softeners, chlorine or ozone generators');
         const installation1Alias = '_INSTALLATION1';
         if (installation1OriginalField) {
@@ -1137,8 +1071,6 @@
         } else {
           console.warn('[WaterCompanySelection] Installation 1 capability source field not found (expected: "Installation and/or maintenance: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators")');
         }
-
-        //  Commercial / office / apartment / warehouse facilities - general alias _COMMERCIAL
         const commercialOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'commercial / office / apartment / warehouse facilities - general');
         const commercialAlias = '_COMMERCIAL';
         if (commercialOriginalField) {
@@ -1157,8 +1089,6 @@
         } else {
           console.warn('[WaterCompanySelection] Commercial capability source field not found (expected: "Commercial / office / apartment / warehouse facilities - general")');
         }
-
-        //  Hospitality, e.g., hotels and restaurants alias _HOSPITALITY
         const hospitalityOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'hospitality, e.g., hotels and restaurants');
         const hospitalityAlias = '_HOSPITALITY';
         if (hospitalityOriginalField) {
@@ -1177,8 +1107,6 @@
         } else {
           console.warn('[WaterCompanySelection] Hospitality capability source field not found (expected: "Hospitality, e.g., hotels and restaurants")');
         }
-
-        //  Healthcare / hospitals alias _HEALTHCARE
         const healthcareOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'healthcare / hospitals');
         const healthcareAlias = '_HEALTHCARE';
         if (healthcareOriginalField) {
@@ -1197,8 +1125,6 @@
         } else {
           console.warn('[WaterCompanySelection] Healthcare capability source field not found (expected: "Healthcare / hospitals")');
         }
-
-        //  Education / schools + universities alias _EDUCATION
         const educationOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'education / schools + universities');
         const educationAlias = '_EDUCATION';
         if (educationOriginalField) {
@@ -1217,8 +1143,6 @@
         } else {
           console.warn('[WaterCompanySelection] Education capability source field not found (expected: "Education / schools + universities")');
         }
-
-        //  Government facilities alias _GOVERNMENT
         const governmentOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'government facilities');
         const governmentAlias = '_GOVERNMENT';
         if (governmentOriginalField) {
@@ -1237,8 +1161,6 @@
         } else {
           console.warn('[WaterCompanySelection] Government capability source field not found (expected: "Government facilities")');
         }
-
-        //  Industrial or Manufacturing facilities - general alias _INDUSTRIAL
         const industrialOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'industrial or manufacturing facilities - general');
         const industrialAlias = '_INDUSTRIAL';
         if (industrialOriginalField) {
@@ -1257,8 +1179,6 @@
         } else {
           console.warn('[WaterCompanySelection] Industrial capability source field not found (expected: "Industrial or manufacturing facilities - general")');
         }
-
-        //  Pharmaceutical manufacturing alias _PHARMACEUTICAL
         const pharmaceuticalOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'pharmaceutical manufacturing');
         const pharmaceuticalAlias = '_PHARMACEUTICAL';
         if (pharmaceuticalOriginalField) {
@@ -1277,8 +1197,6 @@
         } else {
           console.warn('[WaterCompanySelection] Pharmaceutical capability source field not found (expected: "Pharmaceutical manufacturing")');
         }
-
-        //  Data centers alias _DATA_CENTERS
         const dataCentersOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'data centers');
         const dataCentersAlias = '_DATA_CENTERS';
         if (dataCentersOriginalField) {
@@ -1297,8 +1215,6 @@
         } else {
           console.warn('[WaterCompanySelection] Data centers capability source field not found (expected: "Data centers")');
         }
-
-        //  Food and/or beverage processing + manufacture alias _FOOD_BEVERAGE
         const foodBeverageOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'food and/or beverage processing + manufacture');
         const foodBeverageAlias = '_FOOD_BEVERAGE';
         if (foodBeverageOriginalField) {
@@ -1317,8 +1233,6 @@
         } else {
           console.warn('[WaterCompanySelection] Food and/or beverage processing + manufacture capability source field not found (expected: "Food and/or beverage processing + manufacture")');
         }
-
-        //  Agriculture - general alias _AGRICULTURE
         const agricultureOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'agriculture - general');
         const agricultureAlias = '_AGRICULTURE';
         if (agricultureOriginalField) {
@@ -1337,8 +1251,6 @@
         } else {
           console.warn('[WaterCompanySelection] Agriculture - general capability source field not found (expected: "Agriculture - general")');
         }
-
-        //  Agriculture - irrigation, crops alias _AGRICULTURE1
         const agriculture1OriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'agriculture - irrigation, crops');
         const agriculture1Alias = '_AGRICULTURE1';
         if (agriculture1OriginalField) {
@@ -1357,8 +1269,6 @@
         } else {
           console.warn('[WaterCompanySelection] Agriculture - irrigation, crops capability source field not found (expected: "Agriculture - irrigation, crops")');
         }
-
-        //  Agriculture - livestock / aquaculture alias _AGRICULTURE2
         const agriculture2OriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'agriculture - livestock / aquaculture');
         const agriculture2Alias = '_AGRICULTURE2';
         if (agriculture2OriginalField) {
@@ -1377,8 +1287,6 @@
         } else {
           console.warn('[WaterCompanySelection] Agriculture - livestock / aquaculture capability source field not found (expected: "Agriculture - livestock / aquaculture")');
         }
-
-        //  Municipal / Public drinking water alias _MUNICIPAL
         const municipalOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'municipal / public drinking water');
         const municipalAlias = '_MUNICIPAL';
         if (municipalOriginalField) {
@@ -1397,8 +1305,6 @@
         } else {
           console.warn('[WaterCompanySelection] Municipal / Public drinking water capability source field not found (expected: "Municipal / Public drinking water")');
         }
-
-        //  Municipal / Public wastewater alias _MUNICIPAL1
         const municipal1OriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'municipal / public wastewater');
         const municipal1Alias = '_MUNICIPAL1';
         if (municipal1OriginalField) {
@@ -1417,8 +1323,6 @@
         } else {
           console.warn('[WaterCompanySelection] Municipal / Public wastewater capability source field not found (expected: "Municipal / Public wastewater")');
         }
-
-        //  Plumbing / HVAC contractors alias _PLUMBING
         const plumbingOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'plumbing / hvac contractors');
         const plumbingAlias = '_PLUMBING';
         if (plumbingOriginalField) {
@@ -1437,8 +1341,6 @@
         } else {
           console.warn('[WaterCompanySelection] Plumbing / HVAC contractors capability source field not found (expected: "Plumbing / HVAC contractors")');
         }
-
-        //  Domestic / non-commercial residential alias _DOMESTIC
         const domesticOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'domestic / non-commercial residential');
         const domesticAlias = '_DOMESTIC';
         if (domesticOriginalField) {
@@ -1457,8 +1359,6 @@
         } else {
           console.warn('[WaterCompanySelection] Domestic / non-commercial residential capability source field not found (expected: "Domestic / non-commercial residential")');
         }
-
-        //  Lab services alias _LAB
         const labOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'lab services');
         const labAlias = '_LAB';
         if (labOriginalField) {
@@ -1477,8 +1377,6 @@
         } else {
           console.warn('[WaterCompanySelection] Lab services capability source field not found (expected: "Lab services")');
         }
-
-        //  Engineering design alias _ENGINEERING
         const engineeringOriginalField = headers.find(h => h && h.toString().trim().toLowerCase() === 'engineering design');
         const engineeringAlias = '_ENGINEERING';
         if (engineeringOriginalField) {
@@ -1497,8 +1395,6 @@
         } else {
           console.warn('[WaterCompanySelection] Engineering design capability source field not found (expected: "Engineering design")');
         }
-
-        // (Removed capability & services alias generation)
 
         const renderer = {
           type: "simple",
@@ -1545,10 +1441,9 @@
         console.log(`Latitude column: ${headers[latIndex]} (index: ${latIndex})`);
         console.log(`Longitude column: ${headers[lonIndex]} (index: ${lonIndex})`);
         let missingLatLonCount = 0, zipFallbackUsed = 0, zipFallbackUnmatched = 0;
-        // Data rows start after the header row
         for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
           const row = jsonData[i];
-          const attributes = { ObjectID: i }; // Keep using row index as surrogate ObjectID
+          const attributes = { ObjectID: i };
           headers.forEach((header, index) => {
             if (header) {
               let v = row[index];
@@ -1556,14 +1451,12 @@
               attributes[header] = v == null ? '' : v;
             }
           });
-          // Add safe alias attribute names (no spaces) to avoid SQL quoting issues
           if (attributes['Role_Category'] === undefined && attributes['Role Category'] !== undefined) {
             attributes['Role_Category'] = attributes['Role Category'];
           }
           if (attributes['Parent_Company'] === undefined && attributes['Parent Company'] !== undefined) {
             attributes['Parent_Company'] = attributes['Parent Company'];
           }
-          // Location aliasing (normalize to City, State, ZIP_Code)
           if (cityIdx !== -1) {
             const cv = row[cityIdx];
             if (attributes['City'] === undefined) attributes['City'] = (cv == null ? '' : cv);
@@ -1578,24 +1471,20 @@
               attributes['ZIP_Code'] = zv.toString().trim();
             }
           }
-          // If city/state missing but have a combined Location, attempt parse: City, State / Province, Country
           if ((!attributes['City'] || !attributes['State']) && (attributes['Location'] || attributes['location'])) {
             const locRaw = attributes['Location'] || attributes['location'];
             if (locRaw && typeof locRaw === 'string') {
               const parts = locRaw.split(',').map(p => p.trim()).filter(p => p);
               if (parts.length >= 3) {
-                // Assume format: City, StateLike, Country
                 if (!attributes['City']) attributes['City'] = parts[0];
                 if (!attributes['State']) attributes['State'] = parts[1];
                 if (!attributes['Country']) attributes['Country'] = parts[2];
               } else if (parts.length === 2) {
-                // City, State (no explicit country)
                 if (!attributes['City']) attributes['City'] = parts[0];
                 if (!attributes['State']) attributes['State'] = parts[1];
               }
             }
           }
-          // Normalize State abbreviation if possible (US only)
           if (attributes['State'] && !attributes['State Abbr']) {
             const stateMap = window.__STATE_ABBR_MAP || (window.__STATE_ABBR_MAP = {
               'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA','colorado':'CO','connecticut':'CT','delaware':'DE','district of columbia':'DC','florida':'FL','georgia':'GA','hawaii':'HI','idaho':'ID','illinois':'IL','indiana':'IN','iowa':'IA','kansas':'KS','kentucky':'KY','louisiana':'LA','maine':'ME','maryland':'MD','massachusetts':'MA','michigan':'MI','minnesota':'MN','mississippi':'MS','missouri':'MO','montana':'MT','nebraska':'NE','nevada':'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND','ohio':'OH','oklahoma':'OK','oregon':'OR','pennsylvania':'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD','tennessee':'TN','texas':'TX','utah':'UT','vermont':'VT','virginia':'VA','washington':'WA','west virginia':'WV','wisconsin':'WI','wyoming':'WY' });
@@ -1605,12 +1494,11 @@
           if (fipsIndex !== -1) {
             let fv = row[fipsIndex];
             if (typeof fv === 'string') fv = fv.trim();
-            // Preserve original if header specifically FIPS_5Digit for debugging
             const headerName = headers[fipsIndex];
             if (headerName && headerName.toLowerCase().includes('fips_5digit')) {
               attributes['FIPS_5Digit'] = fv == null ? '' : fv;
             }
-            attributes['FIPS'] = fv == null ? '' : fv; // normalized internal name used elsewhere
+            attributes['FIPS'] = fv == null ? '' : fv; 
           }
           let geometry = null;
           if (latIndex !== -1 && lonIndex !== -1) {
@@ -1624,7 +1512,6 @@
           } else {
             missingLatLonCount++;
           }
-          // ZIP fallback if no geometry yet and we have a ZIP column and centroid index
           if (!geometry && zipIdxPrimary !== -1) {
             let rawZip = row[zipIdxPrimary];
             if (rawZip != null && rawZip.toString().trim() !== '') {
@@ -1645,7 +1532,6 @@
             features.push({ geometry, attributes });
           }
           else {
-            // Still push feature if we parsed attributes? (Maintain current behavior: only push if geometry)
           }
         }
         console.log(`[Professionals] ZIP fallback summary: missingLatLonRows=${missingLatLonCount}, zipFallbackUsed=${zipFallbackUsed}, zipFallbackUnmatched=${zipFallbackUnmatched}`);
@@ -1656,7 +1542,6 @@
       }
       function parseBlueTriangleFeatures(jsonData) {
         if (jsonData.length < 2) return [];
-        // Multi-row header detection (scan first up to 8 rows) and choose row with best score
         const maxHeaderScan = Math.min(8, jsonData.length - 1);
         const normalizeRow = row => row.map(h => h ? h.toString().trim() : '');
         const scoreHeader = cells => {
@@ -1682,7 +1567,6 @@
           console.log(`[BlueTriangles] Using row 0 as header (score=${bestScore}).`);
         }
         const features = [];
-        // Stricter detection for lat/long: exact or common variants only (avoid matching substrings like 'Sanitization')
         function strictIndex(headersArr, candidates) {
           const lowered = headersArr.map(h => h ? h.toLowerCase().trim() : '');
             for (let i=0;i<lowered.length;i++) {
@@ -1722,7 +1606,7 @@
         let oid = 1;
         for (let r = headerRowIndex + 1; r < jsonData.length; r++) {
           const row = jsonData[r];
-          if (!row || !row.length || row.every(c => !c || c.toString().trim()==='')) continue; // skip empty
+          if (!row || !row.length || row.every(c => !c || c.toString().trim()==='')) continue; 
           const attributes = { ObjectID: oid++ };
           headers.forEach((h, idx) => {
             if (h) {
@@ -1747,7 +1631,6 @@
             } else {
               let zip = zipRaw.toString().trim();
               if (sampleRawZips.length < 15) sampleRawZips.push(zipRaw);
-              // Normalize: strip non-digits, trim ZIP+4 (dash or space formats)
               zip = zip.replace(/[^0-9]/g,'');
               if (zip.length >= 9) zip = zip.substring(0,5); // ZIP+4 -> base
               if (zip.length === 3) zip = '00'+zip; else if (zip.length === 4) zip = '0'+zip;
@@ -1773,8 +1656,6 @@
         }
         return features;
       }
-
-      // --- ZIP centroid index support ---
       let _zipCentroidIndex = null;
       let _zipCentroidIndexBuilt = false;
       async function buildZipCentroidIndex() {
@@ -1815,14 +1696,12 @@
           }
 
           if (isPlainObject && Object.keys(raw).length && Array.isArray(raw[Object.keys(raw)[0]])) {
-            // Case 1: object of arrays { ZIP: [lon,lat] }
             for (const key in raw) {
               if (!Object.prototype.hasOwnProperty.call(raw, key)) continue;
               const val = raw[key];
               if (Array.isArray(val) && val.length === 2) addPair(key, val[0], val[1]);
             }
           } else if (isPlainObject && Object.keys(raw).length && typeof raw[Object.keys(raw)[0]] === 'object' && !Array.isArray(raw[Object.keys(raw)[0]])) {
-            // Case 2: object of objects { ZIP: {lon:..,lat:..} }
             for (const key in raw) {
               if (!Object.prototype.hasOwnProperty.call(raw,key)) continue;
               const val = raw[key];
@@ -1832,7 +1711,6 @@
               addPair(key, lon, lat);
             }
           } else if (isPlainObject && Array.isArray(raw.features) && raw.geometryType === 'esriGeometryPoint') {
-            // Case 2b: Esri FeatureSet JSON (not GeoJSON) { geometryType:'esriGeometryPoint', features:[{attributes:{ZIP_CODE,.., Latitude, Longitude}, geometry:{x,y}}] }
             console.log('[ZIP] Detected Esri FeatureSet structure. Parsing features array length:', raw.features.length);
             function mercatorToLonLat(x, y) {
               const R = 6378137;
@@ -1844,7 +1722,6 @@
               if (!f || !f.attributes) return;
               const attrs = f.attributes;
               const zipKey = attrs.ZIP_CODE || attrs.zip || attrs['Zip Code'] || attrs['ZIP Code'];
-              // Prefer provided geographic lat/long attributes if present
               let lon = attrs.Longitude != null ? attrs.Longitude : null;
               let lat = attrs.Latitude != null ? attrs.Latitude : null;
               if ((lon == null || lat == null) && f.geometry && typeof f.geometry.x === 'number' && typeof f.geometry.y === 'number') {
@@ -1855,7 +1732,6 @@
               addPair(zipKey, lon, lat);
             });
           } else if (Array.isArray(raw)) {
-            // Case 3: array variant (objects or arrays)
             raw.forEach(obj => {
               if (!obj) return;
               if (Array.isArray(obj)) { if (obj.length>=3) addPair(obj[0], obj[1], obj[2]); return; }
@@ -1866,7 +1742,6 @@
               addPair(zipKey, lon, lat);
             });
           } else if (raw && raw.type === 'FeatureCollection' && Array.isArray(raw.features)) {
-            // Case 4: GeoJSON FeatureCollection
             raw.features.forEach(f => {
               if (!f || f.type !== 'Feature') return;
               const props = f.properties || {};
@@ -1877,7 +1752,6 @@
               }
             });
           } else if (isPlainObject && raw && raw.data) {
-            // Case 5: nested wrapper { data: [...] }
             const d = raw.data;
             if (Array.isArray(d)) {
               d.forEach(obj => {
@@ -1931,13 +1805,11 @@
         headers.forEach(header => {
           if (header && header.toString().trim()) {
             const raw = header.toString().trim();
-            // Hide internal helper fields unless explicitly needed
             if (raw === '_YearsExpNum') return;
             content += `<b>${raw}:</b> {${raw}}<br>`;
             seen.add(raw);
           }
         });
-        // Ensure we expose normalized location fields even if not original headers
         const ensureField = (label, field) => {
           if (!seen.has(field)) {
             content += `<b>${label}:</b> {${field}}<br>`;
@@ -1946,7 +1818,6 @@
         };
         ensureField('City', 'City');
         ensureField('State', 'State');
-        // Provide user-friendly label 'Zip Code' mapping to attribute 'ZIP_Code'
         if (!seen.has('ZIP_Code')) {
           content += `<b>Zip Code:</b> {ZIP_Code}<br>`;
           seen.add('ZIP_Code');
@@ -1956,7 +1827,6 @@
       
       const searchBoxInput = document.getElementById("searchBox");
       const searchSuggestions = document.getElementById("searchSuggestions");
-      // Create secondary zoom search UI (state or city)
       let zoomSearchInput = document.getElementById('zoomSearchBox');
       if (!zoomSearchInput) {
         zoomSearchInput = document.createElement('input');
@@ -1974,14 +1844,12 @@
         zoomSearchBtn.onmouseenter = () => zoomSearchBtn.style.background = '#097';
         zoomSearchBtn.onmouseleave = () => zoomSearchBtn.style.background = '#0a5';
       }
-      // Help button (opens usage guide)
       let helpBtn = document.getElementById('helpBtn');
       if (!helpBtn) {
         helpBtn = document.createElement('button');
         helpBtn.id = 'helpBtn';
         helpBtn.textContent = 'Help';
         helpBtn.title = 'Open usage guide in new tab';
-  // Match styling of CSV Export button (white background, dark text)
   helpBtn.style.cssText = 'margin-left:6px; padding:6px 14px; background:#fff; color:#034d46; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;';
   helpBtn.onmouseenter = () => helpBtn.style.background = '#f2f2f2';
   helpBtn.onmouseleave = () => helpBtn.style.background = '#fff';
@@ -1993,13 +1861,11 @@
       if (view && view.when) {
         view.when(() => { __viewReady = true; });
       } else {
-        // Fallback: mark ready after short delay if view.when not available (should not normally happen)
         setTimeout(()=>{ __viewReady = true; }, 1500);
       }
 
-      // --- State Zoom Support ---
+
       const __STATE_EXTENTS = (function(){
-        // Rough WGS84 extents per state: [xmin, ymin, xmax, ymax]
         return {
           AL:[-88.473,30.144,-84.888,35.009], AK:[-179.15,51.21,-129.98,71.39], AZ:[-114.82,31.30,-109.04,37.00],
           AR:[-94.62,33.00,-89.64,36.50], CA:[-124.48,32.53,-114.13,42.01], CO:[-109.06,36.99,-102.04,41.00],
@@ -2039,11 +1905,10 @@
         }
         if (!abbr) { console.debug('State zoom: not a recognized state token', q); return false; }
         let extentGeom = null;
-        // Prefer dynamic extents from GeoJSON
         if (dynamicStateExtents && dynamicStateExtents[abbr]) {
           const ext = dynamicStateExtents[abbr];
           extentGeom = { type: 'extent', xmin: ext[0], ymin: ext[1], xmax: ext[2], ymax: ext[3], spatialReference: { wkid: 4326 } };
-        } else if (__STATE_EXTENTS[abbr]) { // fallback to static
+        } else if (__STATE_EXTENTS[abbr]) { 
           const ext = __STATE_EXTENTS[abbr];
           extentGeom = { type: 'extent', xmin: ext[0], ymin: ext[1], xmax: ext[2], ymax: ext[3], spatialReference: { wkid: 4326 } };
         }
@@ -2051,39 +1916,33 @@
         try {
           const before = view.extent ? view.extent.clone() : null;
           await view.goTo(extentGeom, { duration: 800 });
-          // Verify change
           const after = view.extent;
           let moved = true;
           if (before && after) {
             const dx = Math.abs((after.xmin + after.xmax)/2 - (before.xmin + before.xmax)/2);
             const dy = Math.abs((after.ymin + after.ymax)/2 - (before.ymin + before.ymax)/2);
-            const threshold = 0.01; // degrees threshold
+            const threshold = 0.01; 
             if (dx < threshold && dy < threshold) moved = false;
           }
           if (!moved) {
-            // Force a second attempt using center/scale approach
             const cx = (extentGeom.xmin + extentGeom.xmax)/2;
             const cy = (extentGeom.ymin + extentGeom.ymax)/2;
             const width = Math.abs(extentGeom.xmax - extentGeom.xmin);
-            // crude scale estimate: degrees to approximate scale; fallback to zoom 6 if huge
             const targetZoom = width > 20 ? 4 : width > 10 ? 5 : width > 5 ? 6 : width > 2 ? 7 : 8;
             await view.goTo({ center: [cx, cy], zoom: targetZoom }, { duration: 600 }).catch(()=>{});
             console.log('[Search] Fallback center zoom used for state', abbr);
           } else {
-            // Always refine to a slightly closer zoom after successful extent fit
             const width = Math.abs(extentGeom.xmax - extentGeom.xmin);
             const cx = (extentGeom.xmin + extentGeom.xmax)/2;
             const cy = (extentGeom.ymin + extentGeom.ymax)/2;
-            // Adjusted closer mapping
-            let targetZoom = 6; // default
-            if (width > 25) targetZoom = 5; // very large (e.g., AK) still not too close
-            else if (width > 15) targetZoom = 5.5; // big states (TX, CA)
-            else if (width > 8) targetZoom = 6; // medium-large
-            else if (width > 4) targetZoom = 6.5; // medium
-            else if (width > 2) targetZoom = 7; // smaller states
-            else if (width > 1) targetZoom = 7.5; // very small
-            else targetZoom = 8; // DC or tiny territory
-            // Round to integer if fractional zoom unsupported in version
+            let targetZoom = 6; 
+            if (width > 25) targetZoom = 5; 
+            else if (width > 15) targetZoom = 5.5; 
+            else if (width > 8) targetZoom = 6; 
+            else if (width > 4) targetZoom = 6.5; 
+            else if (width > 2) targetZoom = 7; 
+            else if (width > 1) targetZoom = 7.5; 
+            else targetZoom = 8; 
             if (typeof targetZoom === 'number') targetZoom = Math.round(targetZoom * 10)/10;
             await view.goTo({ center: [cx, cy], zoom: targetZoom }, { duration: 500 }).catch(()=>{});
             console.log('[Search] Zoomed to state (refined)', abbr, 'width=', width, 'zoom=', targetZoom);
@@ -2094,15 +1953,12 @@
           return false;
         }
       }
-
-      // Enter key handling for state zoom
       if (searchBoxInput) {
         searchBoxInput.addEventListener('keydown', async (e) => {
           if (e.key === 'Enter') {
             const val = searchBoxInput.value;
             const zoomed = await tryZoomToState(val);
             if (zoomed) {
-              // Hide suggestions if any
               searchSuggestions.style.display = 'none';
               searchSuggestions.innerHTML = '';
               e.preventDefault();
@@ -2110,17 +1966,15 @@
           }
         });
       }
-
-      // --- City Zoom Support (refactored to use external GeoJSON index) ---
       const CITY_GEOJSON_URL = 'https://raw.githubusercontent.com/Link0923/Water_Treatment_Data/6899309fa150d0d0a62c29a7d853d9f22d37a7ed/US_Cities.geojson';
       let cityIndexBuilt = false;
-      let cityNameIndex = {}; // nameLower -> array of { name, state, lon, lat }
-      let allCityEntries = []; // flat list for suggestion search
-      let cityGraphicsLayer = null; // optional highlight layer
+      let cityNameIndex = {};
+      let allCityEntries = [];
+      let cityGraphicsLayer = null;
 
       async function buildCityIndex() {
         if (cityIndexBuilt) return;
-        cityIndexBuilt = true; // prevent re-entry
+        cityIndexBuilt = true;
         try {
           const resp = await fetch(CITY_GEOJSON_URL, { cache: 'no-cache' });
           if (!resp.ok) { console.warn('[City] Failed fetch', resp.status); return; }
@@ -2136,7 +1990,6 @@
               const name = (props.NAME || props.Name || props.name || '').toString().trim();
               const state = (props.ST || props.State || props.state || '').toString().trim();
               if (!name || !state || state.length > 3 ? false : false) {
-                // state length check is permissive (2-char expected)
               }
               const lon = +coords[0];
               const lat = +coords[1];
@@ -2150,7 +2003,6 @@
             } catch(_e) {}
           });
           console.log(`[City] Indexed ${added} city points`);
-          // Prepare optional highlight layer (GraphicsLayer) if ArcGIS API available in scope
           try {
             if (window.require) {
               window.require(['esri/layers/GraphicsLayer'], (GraphicsLayer) => {
@@ -2181,7 +2033,7 @@
       }
 
       function computePointExtent(lon, lat, bufferDeg) {
-        const b = bufferDeg || 0.2; // ~22km at equator
+        const b = bufferDeg || 0.2; 
         return { type:'extent', xmin: lon - b, ymin: lat - b, xmax: lon + b, ymax: lat + b, spatialReference: { wkid: 4326 } };
       }
 
@@ -2205,7 +2057,6 @@
           const byState = entries.find(e => e.state.toUpperCase() === normState);
           if (byState) return byState;
         }
-        // fallback: first entry (could improve by population if available)
         return entries[0];
       }
 
@@ -2220,7 +2071,6 @@
         if (entries && entries.length) {
           const sel = chooseCityEntry(entries, parsed.state);
           if (sel) {
-            // Compute dynamic zoom: sample surrounding professional & facility points to gauge density
             let nearbyCount = 0;
             const sampleRadiusDeg = 0.6; // ~65km
             const lon = sel.lon, lat = sel.lat;
@@ -2234,15 +2084,12 @@
             };
             try { professionalsData.slice(0,5000).forEach(countIfNear); } catch(_){}
             try { blueTrianglesData.slice(0,5000).forEach(countIfNear); } catch(_){}
-            // Heuristic zoom mapping based on density
-            // Fewer nearby points -> zoom in closer
-            let targetZoom = 11; // default mid-size
+            let targetZoom = 11; 
             if (nearbyCount < 5) targetZoom = 12;
             else if (nearbyCount < 15) targetZoom = 11.5;
             else if (nearbyCount < 40) targetZoom = 11;
             else if (nearbyCount < 100) targetZoom = 10.5;
-            else targetZoom = 10; // very dense area keep a bit wider
-            // Round to one decimal if supported
+            else targetZoom = 10; 
             targetZoom = Math.round(targetZoom * 10)/10;
             try {
               await view.goTo({ center: [lon, lat], zoom: targetZoom }, { duration: 800 });
@@ -2256,7 +2103,6 @@
             }
           }
         }
-        // Fallback to legacy search through loaded professional/facility points
         const legacyExtent = (function findLegacyCityExtent(query) {
           if (!query) return null;
           const raw = query.trim();
@@ -2344,15 +2190,12 @@
       if (zoomSearchBtn) {
         zoomSearchBtn.addEventListener('click', () => handleZoomSearchSubmit());
       }
-
-      // Ensure zoom search input, Go button, and Help button are in the UI (append near existing search container)
       (function ensureZoomSearchUI(){
         const wrapper = document.getElementById('secondarySearchWrapper');
         if (wrapper) {
           if (!document.getElementById('zoomSearchBox')) wrapper.appendChild(zoomSearchInput);
           if (!document.getElementById('zoomSearchGo')) wrapper.appendChild(zoomSearchBtn);
         } else {
-          // Fallback to previous behavior if wrapper missing
           const host = document.getElementById('searchContainer') || document.querySelector('#searchBox')?.parentElement || document.body;
           if (host) {
             if (!document.getElementById('zoomSearchBox')) host.appendChild(zoomSearchInput);
@@ -2360,8 +2203,6 @@
           }
         }
       })();
-
-      // --- Combined State & City Suggestions ---
       let locationSuggestDiv = document.getElementById('stateSuggest');
       if (!locationSuggestDiv) {
         locationSuggestDiv = document.createElement('div');
@@ -2401,7 +2242,6 @@
             <span>${m.name}</span><span style='color:#555; font-size:11px;'>${m.abbr}</span>
           </div>`).join('');
         }
-        // Cities (after index built)
         if (allCityEntries.length) {
           const cityMatches = allCityEntries.filter(c => c.name.toLowerCase().startsWith(q));
           if (cityMatches.length) {
@@ -2434,7 +2274,6 @@
 
       if (zoomSearchInput) {
         zoomSearchInput.addEventListener('input', async () => {
-          // Ensure city index is built lazily after some typing (first character)
           if (!cityIndexBuilt) buildCityIndex();
           renderLocationSuggestions(zoomSearchInput.value);
         });
@@ -2611,15 +2450,12 @@
       parentCompanies: new Set(),
       enabledRoles: new Set(),
       enabledCompanies: new Set(),
-      companyMinThreshold: null, // when set (e.g., 10) hide companies below that count
-      // Experience range state
+      companyMinThreshold: null, 
       experienceMin: null,
       experienceMax: null,
       experienceActive: false,
-      experienceFieldName: null // cache resolved experience field
+      experienceFieldName: null
     };
-
-    // Water Company Selection removed – state no longer maintained.
 
     function getProfessionalsUniqueValues(field) {
       if (!professionalsData.length) return [];
@@ -2630,8 +2466,6 @@
       });
       return Array.from(values).sort();
     }
-
-    // applyWaterCompanyFilter removed
 
     const filterBtn = document.getElementById("filterBtn");
     filterBtn.addEventListener("click", function() {
@@ -2644,10 +2478,8 @@
         manipulatorPane.style.display = 'none';
         return;
       }
-      // Toggle on (open & render)
       manipulatorPane.style.display = 'flex';
       if (manipulatorContent) {
-        // Remove advanced selection section if present
         const adv = document.getElementById('advancedSelectionSection');
         if (adv) adv.remove();
         manipulatorContent.innerHTML = '<div id="filterOptionsSection" style="color:#888;">Loading filters…</div>';
@@ -2694,7 +2526,6 @@
         html += `</div>`;
       }
       if (companies.length) {
-        // If threshold active, compute counts and filter companies list before rendering
         if (filterState.companyMinThreshold && professionalsData.length && companyField) {
           const counts = {};
           professionalsData.forEach(f => {
@@ -2723,14 +2554,11 @@
       if (!roles.length && !companies.length) {
         html += `<div style='color:#888;'>No filterable fields found in professionals layer.</div>`;
       }
-      // (Removed old global Check/Clear buttons; role-only buttons now beneath header.)
       if (manipulatorContent) {
-        // Ensure advanced selection UI removed when rendering filters
         const adv2 = document.getElementById('advancedSelectionSection');
         if (adv2) adv2.remove();
         manipulatorContent.innerHTML = html;
       }
-      // Experience filter wiring
       const expToggleBtn = document.getElementById('experienceToggleBtn');
       const expMinInput = document.getElementById('expMinInput');
       const expMaxInput = document.getElementById('expMaxInput');
@@ -2756,7 +2584,6 @@
           applyProfessionalsFilter();
         });
       }
-      // Append badge showing chosen field name if known
       const expBlock = document.getElementById('experienceFilterBlock');
       if (expBlock) {
         let badge = expBlock.querySelector('.exp-field-badge');
@@ -2782,7 +2609,6 @@
             applyProfessionalsFilter();
           });
         });
-      // New role-only bulk action handlers
       const roleCheckAllBtn = document.getElementById('roleCheckAllBtn');
       if (roleCheckAllBtn) {
         roleCheckAllBtn.addEventListener('click', () => {
@@ -2803,7 +2629,6 @@
           applyProfessionalsFilter();
         });
       }
-      // Company-only bulk action handlers
       const companyCheckAllBtn = document.getElementById('companyCheckAllBtn');
       if (companyCheckAllBtn) {
         companyCheckAllBtn.addEventListener('click', () => {
@@ -2824,7 +2649,6 @@
           applyProfessionalsFilter();
         });
       }
-      // Company >=10 button logic
       const company10PlusBtn = document.getElementById('company10PlusBtn');
       if (company10PlusBtn) {
         company10PlusBtn.addEventListener('click', () => {
@@ -2845,21 +2669,17 @@
             alert('No parent companies have 10 or more professionals.');
             return;
           }
-          // Set threshold mode and recompute enabledCompanies strictly from keep
           filterState.companyMinThreshold = 10;
           filterState.enabledCompanies.clear();
           keep.forEach(c => filterState.enabledCompanies.add(c));
-          // Re-render UI to hide others
           renderFilterUI();
           applyProfessionalsFilter();
         });
       }
-      // Show All button handler (if present)
       const companyShowAllBtn = document.getElementById('companyShowAllBtn');
       if (companyShowAllBtn) {
         companyShowAllBtn.addEventListener('click', () => {
           filterState.companyMinThreshold = null;
-          // Rebuild enabledCompanies to include all again
           if (companyField) {
             const allCompanies = getProfessionalsUniqueValues(companyField);
             filterState.enabledCompanies.clear();
@@ -2873,7 +2693,6 @@
 
     function applyProfessionalsFilter() {
       if (!professionalsLayerRef) return;
-      // Find the actual field names in the data
       let roleField = null;
       let companyField = null;
       let experienceField = filterState.experienceFieldName || null;
@@ -2891,17 +2710,13 @@
           const ck = Object.keys(attrs).find(k => k && k.toString().replace(/[_\s]/g,'').toLowerCase() === 'parentcompany');
           if (ck) companyField = ck;
         }
-        // Experience field detection (cached after first resolution)
         if (!experienceField) {
           const keys = Object.keys(attrs);
-          // Pass 1: exact case-insensitive match
           experienceField = keys.find(k => k.toLowerCase() === 'years experience (numeric)' || k.toLowerCase() === 'years_experience_(numeric)') || null;
-          // Pass 2: normalized collapse
           if (!experienceField) {
             const targetNorm = 'yearsexperiencenumeric';
             experienceField = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g,'') === targetNorm) || null;
           }
-          // Pass 3: generic contains 'experience'
           if (!experienceField) {
             experienceField = keys.find(k => /experience/i.test(k)) || null;
           }
@@ -2915,11 +2730,9 @@
       }
     const safeField = (f) => (f && /[^A-Za-z0-9_]/.test(f) ? '"' + f + '"' : f);
       let clauses = [];
-      // Only apply a filter if NOT all values are checked; if all are checked, show all points (no filter)
       if (roleField) {
         const allRoles = getProfessionalsUniqueValues(roleField);
         if (allRoles.length > 0) {
-          // Empty enabledRoles => treat as ALL selected (no clause)
           if (filterState.enabledRoles.size > 0 && filterState.enabledRoles.size < allRoles.length) {
             const valsArr = Array.from(filterState.enabledRoles).map(v => `'${v.replace(/'/g, "''")}'`);
             if (valsArr.length > 0) {
@@ -2939,11 +2752,9 @@
           }
         }
       }
-      // Experience clause (prefer derived numeric if available)
       if (filterState.experienceActive && experienceField) {
         const emin = filterState.experienceMin;
         const emax = filterState.experienceMax;
-        // If derived numeric field exists, switch to it
         const hasDerived = professionalsData.length && professionalsData[0].attributes && professionalsData[0].attributes['_YearsExpNum'] !== undefined;
         const fieldForQuery = hasDerived ? '_YearsExpNum' : experienceField;
         if (hasDerived) {
@@ -2976,9 +2787,7 @@
       if (typeof updateMapCounter === 'function') {
         updateMapCounter();
       }
-      // Recompute county shading if counties visible
       try { if (countiesLayerRef && countiesLayerRef.visible) scheduleCountyShading(); } catch(e) {}
-  // Only refresh legend if currently visible
   try {
     if (mapLegend && mapLegend.style.display === 'block') { updateLegend(); }
   } catch (e) {}
@@ -3020,7 +2829,6 @@
   csvExportBtn.style.marginLeft = '3px';
     csvExportBtn.style.marginRight = '0px';
     if (searchBoxInput && searchBoxInput.parentNode === leftControls) {
-      // Insert our secondary zoom box just after the main searchBox if not already present
       if (!document.getElementById('zoomSearchBox')) {
         if (searchBoxInput.nextSibling) {
           leftControls.insertBefore(zoomSearchInput, searchBoxInput.nextSibling);
@@ -3035,9 +2843,7 @@
       } else {
         leftControls.appendChild(csvExportBtn);
       }
-      // Place Help button immediately after CSV Export
       if (!document.getElementById('helpBtn')) {
-        // helpBtn already created earlier in script
         leftControls.insertBefore(helpBtn, csvExportBtn.nextSibling);
       } else {
         const existingHelp = document.getElementById('helpBtn');
@@ -3089,26 +2895,21 @@
         filteredProfessionals = selected.professionals.filter(f => matchesDefinitionExpression(f, professionalsLayerRef));
       }
 
-      // Apply current Blue Triangles layer definitionExpression to selected.blue
       let filteredBlue = [];
       if (selected.blue && selected.blue.length) {
         if (blueTrianglesLayerRef && blueTrianglesLayerRef.definitionExpression) {
           const expr = blueTrianglesLayerRef.definitionExpression;
-          // Reuse matchesDefinitionExpression by temporarily swapping layerRef
           filteredBlue = selected.blue.filter(f => matchesDefinitionExpression(f, blueTrianglesLayerRef));
         } else {
           filteredBlue = selected.blue.slice();
         }
       }
 
-      // If no explicit selection for blue, optionally export ALL currently filtered facilities (visible subset) if layer is visible
       if ((!filteredProfessionals.length) && (!filteredBlue.length)) {
         let triedQuery = false;
         if (blueTrianglesLayerRef && blueTrianglesLayerRef.visible) {
           try {
             triedQuery = true;
-            // Query all features obeying current definitionExpression (no geometry limit)
-            // NOTE: This is a synchronous export path; could be async in future.
           } catch(e) { console.warn('Blue layer query attempt failed', e); }
         }
         if (!filteredProfessionals.length && !filteredBlue.length) {
@@ -3231,7 +3032,7 @@
         countFeatures(professionalsLayerRef),
         countFeatures(blueTrianglesLayerRef)
       ]);
-      const total = proCount + blueCount; // ZIP count removed per user request
+      const total = proCount + blueCount; 
       let html = '';
       html += `<span style='color:#f5f2e6;'>Professionals:</span> <b style='color:#fff;'>${proCount}</b> &nbsp;`;
       html += `<span style='color:#0074D9;'>Water Facilities:</span> <b style='color:#fff;'>${blueCount}</b> &nbsp;`;
@@ -3262,7 +3063,6 @@
       setTimeout(setupCounterEvents, 500);
     }
 
-  // Advanced Selection now isolated in its own pane
   const advancedSelectionBtn = document.getElementById('advancedSelectionBtn');
   const advancedSelectionPane = document.getElementById('advancedSelectionPane');
   const advancedSelectionCloseBtn = document.getElementById('advancedSelectionCloseBtn');
@@ -3293,8 +3093,6 @@
       e.preventDefault();
       deactivateSelectTool();
     });
-
-    // Inject Advanced Selection content into manipulator pane lazily
     function updateAdvSelStatus(msg) { const el = document.getElementById('advancedSelectionStatus'); if (el) el.textContent = msg; }
 
     function showAdvancedSelectionPane() {
@@ -3303,7 +3101,6 @@
       advancedSelectionPane.style.display = 'flex';
       updateAdvSelStatus('Choose a selection mode.');
       console.log('[AdvancedSelection] Pane opened');
-      // Wire Water Company Selection buttons (idempotent, safe repeated)
       const checkAllBtn = document.getElementById('wcCheckAllBtn');
       const clearAllBtn = document.getElementById('wcClearAllBtn');
       const applyBtn = document.getElementById('wcApplyBtn');
@@ -3327,7 +3124,6 @@
           if (!container) return;
           const selected = Array.from(container.querySelectorAll('input.wc-opt[type="checkbox"]:checked')).map(cb => cb.value);
           console.log('[WaterCompanySelection] Apply clicked. Selected options:', selected);
-          // Service Y/N filtering logic (capability checkboxes not yet functional)
           const serviceRadio = container.querySelector('input[name="wcServiceYN"]:checked');
           const serviceVal = serviceRadio ? serviceRadio.value : 'ANY';
           if (!blueTrianglesLayerRef) {
@@ -3339,11 +3135,9 @@
           }
           let expr = null;
           if (waterCompanyServiceField) {
-            // Prefer alias field for filtering if populated
             const filterField = blueTrianglesLayerRef.fields.find(f => f.name === waterCompanyServiceAliasField) ? waterCompanyServiceAliasField : waterCompanyServiceField;
             if (serviceVal === 'YES') expr = `${filterField} = 'Y'`;
             else if (serviceVal === 'NO') expr = `${filterField} = 'N'`;
-            // Log sample distinct alias values if alias present
             if (filterField === waterCompanyServiceAliasField) {
               const distinctAlias = Array.from(new Set(blueTrianglesData.map(f => f.attributes && f.attributes[waterCompanyServiceAliasField]).filter(v => v)));
               console.log('[WaterCompanySelection] Alias distinct values:', distinctAlias);
@@ -3352,7 +3146,6 @@
               console.log('[WaterCompanySelection] Original field distinct values:', distinctOrig);
             }
           }
-          // HVAC capability filter: if the HVAC checkbox is checked, only keep records with alias _HVAC = '1'
           const hvacCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="HVAC water treatment services"]');
           const hvacChecked = hvacCheckbox ? hvacCheckbox.checked : false;
           if (hvacChecked) {
@@ -3365,7 +3158,6 @@
               console.warn('[WaterCompanySelection] HVAC alias field not present on layer; cannot apply HVAC filter.');
             }
           }
-          // Cooling Water Treatment services checkbox
           const coolingCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Cooling Water Treatment services"]');
           const coolingChecked = coolingCheckbox ? coolingCheckbox.checked : false;
           if (coolingChecked) {
@@ -3378,7 +3170,6 @@
               console.warn('[WaterCompanySelection] Cooling alias field not present on layer; cannot apply Cooling filter.');
             }
           }
-          // Heating/Boiler Water Treatment services checkbox
           const heatingCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Heating/Boiler Water Treatment services"]');
           const heatingChecked = heatingCheckbox ? heatingCheckbox.checked : false;
           if (heatingChecked) {
@@ -3392,7 +3183,6 @@
             }
           }
 
-          // Filtration/separation or Reverse Osmosis water treatment services checkbox
           const filtrationCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Filtration/Separation or Reverse Osmosis water treatment services"]');
           const filtrationChecked = filtrationCheckbox ? filtrationCheckbox.checked : false;
           if (filtrationChecked) {
@@ -3406,7 +3196,6 @@
             }
           }
 
-          // Ultrapure water treatment services checkbox
           const ultrapureCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Ultrapure water treatment"]');
           const ultrapureChecked = ultrapureCheckbox ? ultrapureCheckbox.checked : false;
           if (ultrapureChecked) {
@@ -3420,7 +3209,6 @@
             }
           }
 
-          // Wastewater treatment services checkbox
           const wastewaterCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Wastewater treatment"]');
           const wastewaterChecked = wastewaterCheckbox ? wastewaterCheckbox.checked : false;
           if (wastewaterChecked) {
@@ -3434,7 +3222,6 @@
             }
           }
 
-          // Glycol water treatment services checkbox
           const glycolCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Glycol"]');
           const glycolChecked = glycolCheckbox ? glycolCheckbox.checked : false;
           if (glycolChecked) {
@@ -3448,7 +3235,6 @@
             }
           }
 
-          // Cleaning / Sanitization / Disinfection services checkbox
           const cleaningCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Cleaning / Sanitization / Disinfection"]');
           const cleaningChecked = cleaningCheckbox ? cleaningCheckbox.checked : false;
           if (cleaningChecked) {
@@ -3462,7 +3248,6 @@
             }
           }
 
-          // Legionella services checkbox
           const legionellaCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Legionella or other regulatory testing"]');
           const legionellaChecked = legionellaCheckbox ? legionellaCheckbox.checked : false;
           if (legionellaChecked) {
@@ -3476,7 +3261,6 @@
             }
           }
 
-          // Chemical Blending, specialty formulation, private label for water treatment services checkbox
           const chemicalBlendingCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Chemical Blending, specialty formulation, private label for water treatment"]');
           const chemicalBlendingChecked = chemicalBlendingCheckbox ? chemicalBlendingCheckbox.checked : false;
           if (chemicalBlendingChecked) {
@@ -3490,7 +3274,6 @@
             }
           }
 
-          // Manufacturing or assembly: Pumps / Controls / sensors checkbox
           const manufacturingCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Manufacturing or assembly: Pumps / Controls / sensors"]');
           const manufacturingChecked = manufacturingCheckbox ? manufacturingCheckbox.checked : false;
           if (manufacturingChecked) {
@@ -3504,7 +3287,6 @@
             }
           }   
           
-          // Installation and/or maintenance: Pumps / Controls / sensors checkbox
           const installationCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Installation and/or maintenance: Pumps / Controls / sensors"]');
           const installationChecked = installationCheckbox ? installationCheckbox.checked : false;
           if (installationChecked) {
@@ -3518,7 +3300,6 @@
             }
           } 
 
-          // Manufacturing or assembly: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators, checkbox
           const manufacturing1Checkbox = container.querySelector('input.wc-opt[type="checkbox"][value="Manufacturing or assembly: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators"]');
           const manufacturing1Checked = manufacturing1Checkbox ? manufacturing1Checkbox.checked : false;
           if (manufacturing1Checked) {
@@ -3532,7 +3313,6 @@
             }
           } 
 
-          // Installation and/or maintenance: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators checkbox
           const installation1Checkbox = container.querySelector('input.wc-opt[type="checkbox"][value="Installation and/or maintenance: Water treatment equipment - Filters, membrane systems, Reverse Osmosis (RO), softeners, chlorine or ozone generators"]');
           const installation1Checked = installation1Checkbox ? installation1Checkbox.checked : false;
           if (installation1Checked) {
@@ -3546,7 +3326,6 @@
             }
           } 
 
-          // Commercial / office / apartment / warehouse facilities - general checkbox
           const commercialCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Commercial / office / apartment / warehouse facilities - general"]');
           const commercialChecked = commercialCheckbox ? commercialCheckbox.checked : false;
           if (commercialChecked) {
@@ -3560,7 +3339,6 @@
             }
           } 
 
-          // Hospitality, e.g., hotels and restaurants checkbox
           const hospitalityCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Hospitality, e.g., hotels and restaurants"]');
           const hospitalityChecked = hospitalityCheckbox ? hospitalityCheckbox.checked : false;
           if (hospitalityChecked) {
@@ -3574,7 +3352,6 @@
             }
           } 
 
-          // Healthcare / hospitals checkbox
           const healthcareCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Healthcare / hospitals"]');
           const healthcareChecked = healthcareCheckbox ? healthcareCheckbox.checked : false;
           if (healthcareChecked) {
@@ -3588,7 +3365,6 @@
             }
           } 
 
-          // Education / schools + universities checkbox
           const educationCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Education / schools + universities"]');
           const educationChecked = educationCheckbox ? educationCheckbox.checked : false;
           if (educationChecked) {
@@ -3602,7 +3378,6 @@
             }
           } 
 
-          // Government facilities checkbox
           const governmentCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Government facilities"]');
           const governmentChecked = governmentCheckbox ? governmentCheckbox.checked : false;
           if (governmentChecked) {
@@ -3616,7 +3391,6 @@
             }
           } 
 
-          // Industrial or Manufacturing facilities - general checkbox
           const industrialCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Industrial or Manufacturing facilities - general"]');
           const industrialChecked = industrialCheckbox ? industrialCheckbox.checked : false;
           if (industrialChecked) {
@@ -3630,7 +3404,6 @@
             }
           } 
 
-          // Pharmaceutical manufacturing checkbox
           const pharmaceuticalCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Pharmaceutical manufacturing"]');
           const pharmaceuticalChecked = pharmaceuticalCheckbox ? pharmaceuticalCheckbox.checked : false;
           if (pharmaceuticalChecked) {
@@ -3644,7 +3417,6 @@
             }
           } 
 
-          // Data centers checkbox
           const dataCentersCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Data centers"]');
           const dataCentersChecked = dataCentersCheckbox ? dataCentersCheckbox.checked : false;
           if (dataCentersChecked) {
@@ -3658,7 +3430,6 @@
             }
           } 
 
-          // Food and/or beverage processing + manufacture checkbox
           const foodBeverageCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Food and/or beverage processing + manufacture"]');
           const foodBeverageChecked = foodBeverageCheckbox ? foodBeverageCheckbox.checked : false;
           if (foodBeverageChecked) {
@@ -3672,7 +3443,6 @@
             }
           } 
 
-          // Agriculture - general checkbox
           const agricultureCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Agriculture - general"]');
           const agricultureChecked = agricultureCheckbox ? agricultureCheckbox.checked : false;
           if (agricultureChecked) {
@@ -3686,7 +3456,6 @@
             }
           } 
 
-          // Agriculture - irrigation, crops checkbox
           const agriculture1Checkbox = container.querySelector('input.wc-opt[type="checkbox"][value="Agriculture - irrigation, crops"]');
           const agriculture1Checked = agriculture1Checkbox ? agriculture1Checkbox.checked : false;
           if (agriculture1Checked) {
@@ -3700,7 +3469,6 @@
             }
           } 
 
-          // Agriculture - livestock / aquaculture checkbox
           const agriculture2Checkbox = container.querySelector('input.wc-opt[type="checkbox"][value="Agriculture - livestock / aquaculture"]');
           const agriculture2Checked = agriculture2Checkbox ? agriculture2Checkbox.checked : false;
           if (agriculture2Checked) {
@@ -3714,7 +3482,6 @@
             }
           } 
 
-          // Municipal / Public drinking water checkbox
           const municipalCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Municipal / Public drinking water"]');
           const municipalChecked = municipalCheckbox ? municipalCheckbox.checked : false;
           if (municipalChecked) {
@@ -3728,7 +3495,6 @@
             }
           } 
 
-          // Municipal / Public wastewater checkbox
           const municipal1Checkbox = container.querySelector('input.wc-opt[type="checkbox"][value="Municipal / Public wastewater"]');
           const municipal1Checked = municipal1Checkbox ? municipal1Checkbox.checked : false;
           if (municipal1Checked) {
@@ -3742,7 +3508,6 @@
             }
           } 
 
-          // Plumbing / HVAC contractors checkbox
           const plumbingCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Plumbing / HVAC contractors"]');
           const plumbingChecked = plumbingCheckbox ? plumbingCheckbox.checked : false;
           if (plumbingChecked) {
@@ -3756,7 +3521,6 @@
             }
           } 
 
-          // Domestic / non-commercial residential checkbox
           const domesticCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Domestic / non-commercial residential"]');
           const domesticChecked = domesticCheckbox ? domesticCheckbox.checked : false;
           if (domesticChecked) {
@@ -3770,7 +3534,6 @@
             }
           } 
 
-          // Lab services checkbox
           const labCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Lab services"]');
           const labChecked = labCheckbox ? labCheckbox.checked : false;
           if (labChecked) {
@@ -3784,7 +3547,6 @@
             }
           } 
 
-          // Engineering design checkbox
           const engineeringCheckbox = container.querySelector('input.wc-opt[type="checkbox"][value="Engineering design"]');
           const engineeringChecked = engineeringCheckbox ? engineeringCheckbox.checked : false;
           if (engineeringChecked) {
@@ -3798,16 +3560,13 @@
             }
           } 
 
-          // Apply (or clear) the definitionExpression
-          blueTrianglesLayerRef.definitionExpression = expr; // null/undefined clears filter
+          blueTrianglesLayerRef.definitionExpression = expr; 
           if (!blueTrianglesLayerRef.visible) blueTrianglesLayerRef.visible = true;
           console.log('[WaterCompanySelection] Applied service filter value:', serviceVal, 'expression:', expr || '(none)');
-          // Refresh counters & advanced selection status
           try { updateMapCounter(); } catch(e) { console.warn('Counter update failed', e); }
           try {
             const advStatus = document.getElementById('advancedSelectionStatus');
             if (advStatus) {
-              // Recompute counts for status line using existing helper if available
               (async () => {
                 if (typeof professionalsLayerRef !== 'undefined' && professionalsLayerRef) {
                   const proCnt = await professionalsLayerRef.queryFeatureCount({ where: professionalsLayerRef.definitionExpression || '1=1' });
@@ -3816,7 +3575,7 @@
                 }
               })();
             }
-          } catch(e) { /* non-fatal */ }
+          } catch(e) {}
         });
         applyBtn._wired = true;
       }
@@ -3826,12 +3585,10 @@
     advancedSelectionBtn.addEventListener('click', showAdvancedSelectionPane);
     advancedSelectionCloseBtn.addEventListener('click', hideAdvancedSelectionPane);
 
-    // (Water Company Selection logic removed)
     document.getElementById('btnSquareSelect').addEventListener('click', () => { selectMode = 'square'; activateSelectMode(selectMode); updateAdvSelStatus('Square selection active. Drag to draw rectangle.'); });
     document.getElementById('btnLassoSelect').addEventListener('click', () => { selectMode = 'lasso'; activateSelectMode(selectMode); updateAdvSelStatus('Lasso selection active. Drag to trace shape.'); });
     document.getElementById('btnClearSelection').addEventListener('click', () => { deactivateSelectTool(); updateAdvSelStatus('Selection cleared.'); });
 
-    // ZIP Radius selection logic
     const zipSelectInput = document.getElementById('zipSelectInput');
     const zipRadiusInput = document.getElementById('zipRadiusInput');
     const btnZipRadiusGo = document.getElementById('btnZipRadiusGo');
@@ -3863,7 +3620,6 @@
         const pt = new Point({ longitude: centroid.x, latitude: centroid.y, spatialReference: { wkid:4326 } });
         const buffer = geometryEngine.geodesicBuffer(pt, miles, 'miles');
         if (!buffer) { setZipRadiusStatus('Buffer failed.', true); return; }
-        // Add/update graphic layer for buffer visualization (reuse selectGraphicsLayer if exists)
         if (!selectGraphicsLayer) {
           require(["esri/layers/GraphicsLayer"], function(GraphicsLayer){
             selectGraphicsLayer = new GraphicsLayer();
@@ -3875,7 +3631,6 @@
         }
         function addBufferGraphic() {
           if (!selectGraphicsLayer) return;
-          // Remove previous buffer graphic(s)
             selectGraphicsLayer.graphics.removeMany(selectGraphicsLayer.graphics.toArray());
           const g = new Graphic({ geometry: buffer, symbol: { type:'simple-fill', color:[0,120,255,0.08], outline:{ color:[0,120,255,1], width:2 } } });
           selectGraphicsLayer.add(g);
@@ -3900,7 +3655,6 @@
       });
     }
 
-    // Point Radius Selection logic
     const btnActivatePointCenter = document.getElementById('btnActivatePointCenter');
     const btnPointRadiusGo = document.getElementById('btnPointRadiusGo');
     const btnClearPointCenter = document.getElementById('btnClearPointCenter');
@@ -3929,7 +3683,6 @@
           try {
             pointCenter = new Point({ longitude: mapPoint.longitude, latitude: mapPoint.latitude, spatialReference:{ wkid:4326 } });
           } catch(e) {
-            // Fallback literal object if Point construct fails
             pointCenter = { type:'point', longitude: mapPoint.longitude, latitude: mapPoint.latitude, spatialReference:{ wkid:4326 } };
           }
           setPointRadiusStatus(`Center set at (${mapPoint.longitude.toFixed(4)}, ${mapPoint.latitude.toFixed(4)}). Enter miles and click Go.`);
@@ -3973,7 +3726,6 @@
             selectGraphicsLayer = new GraphicsLayer();
             view.map.add(selectGraphicsLayer);
           }
-          // Remove existing polygon buffers only (keep center)
           const toRemove = selectGraphicsLayer.graphics.toArray().filter(gr => gr.geometry && gr.geometry.type === 'polygon');
           if (toRemove.length) selectGraphicsLayer.graphics.removeMany(toRemove);
           const polyGraphic = new Graphic({ geometry: buffer, symbol:{ type:'simple-fill', color:[0,120,255,0.08], outline:{ color:[0,120,255,1], width:2 } } });
@@ -4003,7 +3755,6 @@
         const polys = selectGraphicsLayer.graphics.toArray().filter(gr => gr.geometry && gr.geometry.type === 'polygon');
         if (polys.length) selectGraphicsLayer.graphics.removeMany(polys);
       }
-      // Clear any active selection highlight
       if (selectHighlightHandle) {
         try { selectHighlightHandle.remove(); } catch(_) {}
         selectHighlightHandle = null;
@@ -4020,7 +3771,6 @@
 
 function activateSelectMode(mode) {
   if (!view) return;
-  // Proceed even if professionals layer hidden; we'll select from any visible eligible layers
   if ((professionalsLayerRef && !professionalsLayerRef.visible) && (!blueTrianglesLayerRef || !blueTrianglesLayerRef.visible)) {
     updateAdvSelStatus('No selectable layers are visible. Turn on a layer to use selection tools.');
     return;
@@ -4120,7 +3870,6 @@ function activateSelectMode(mode) {
 }
 
     async function selectFeaturesInGeometry(geometry) {
-      // Advanced selection now targets Professionals and Blue Triangles
       const layers = [
         { ref: professionalsLayerRef, data: professionalsData, key: 'professionals' },
         { ref: blueTrianglesLayerRef, data: blueTrianglesData, key: 'blue' }
@@ -4130,7 +3879,7 @@ function activateSelectMode(mode) {
   let selectedFeatures = { professionals: [], blue: [] };
       for (const layer of layers) {
         if (!layer.ref) continue;
-        if (!layer.ref.visible) continue; // only select from visible layers now
+        if (!layer.ref.visible) continue; 
         try {
           let query = {
             geometry: geometry,
@@ -4165,7 +3914,6 @@ function activateSelectMode(mode) {
         selectHighlightHandle = null;
         window._lastSelectedFeatures = { professionals: [], blue: [] };
       }
-      // Update advanced selection status if pane visible
       const advStatus = document.getElementById('advancedSelectionStatus');
       if (advStatus) {
         advStatus.textContent = `Selected Professionals: ${profCount}${blueTrianglesLayerRef && blueTrianglesLayerRef.visible ? ` | Blue Triangles: ${blueCount}` : ''}`;
@@ -4291,4 +4039,5 @@ function activateSelectMode(mode) {
   }); 
   </script>
 </body>
+
 </html>
